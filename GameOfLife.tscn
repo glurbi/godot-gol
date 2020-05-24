@@ -1,0 +1,93 @@
+[gd_scene load_steps=5 format=2]
+
+[ext_resource path="res://GameOfLife.gd" type="Script" id=1]
+[ext_resource path="res://Grid.gd" type="Script" id=2]
+[ext_resource path="res://Camera.gd" type="Script" id=3]
+
+[sub_resource type="GDScript" id=1]
+script/source = "extends MeshInstance2D
+
+var cells: PoolByteArray
+var rng = RandomNumberGenerator.new()
+
+func _init():
+	cells = PoolByteArray()
+	for x in range(100):
+		for y in range(100):
+			var v = rng.randi_range(0,1)
+			cells.push_back(v)
+		
+func _ready():
+	set_process_input(true)
+	update_mesh()
+
+func update_mesh():
+	var vertices = PoolVector2Array()
+	var colors = PoolColorArray()
+	for x in range(100):
+		for y in range(100):
+			vertices.push_back(Vector2(x, y))
+			vertices.push_back(Vector2(x+1, y))
+			vertices.push_back(Vector2(x, y+1))
+			vertices.push_back(Vector2(x+1, y))
+			vertices.push_back(Vector2(x+1, y+1))
+			vertices.push_back(Vector2(x, y+1))
+			var c = cells[x+y*100]
+			colors.push_back(Color(c, c, c))
+			colors.push_back(Color(c, c, c))
+			colors.push_back(Color(c, c, c))
+			colors.push_back(Color(c, c, c))
+			colors.push_back(Color(c, c, c))
+			colors.push_back(Color(c, c, c))
+	var arr_mesh = ArrayMesh.new()
+	var arrays = []
+	arrays.resize(ArrayMesh.ARRAY_MAX)
+	arrays[ArrayMesh.ARRAY_VERTEX] = vertices
+	arrays[ArrayMesh.ARRAY_COLOR] = colors
+	arr_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh = arr_mesh
+	
+
+func _on_Timer_timeout():
+	iterate_gol()
+	update_mesh()
+
+func iterate_gol():
+	var new_cells = PoolByteArray()
+	new_cells.resize(100*100)
+	for x in range(100):
+		for y in range(100):
+			var n = count_neighbours(cells, x, y)
+			if n == 3 or n == 2 and cells[x+y*100] == 1:
+				new_cells.set(x+y*100, 1)
+			else:
+				new_cells.set(x+y*100, 0)
+	cells = new_cells
+				
+func count_neighbours(cells, x, y):
+	var count = - cells[x+y*100]
+	for xx in [-1, 0, 1]:
+		for yy in [-1, 0, 1]:
+			var xi = (x + xx) % 100
+			var yi = (y + yy) % 100
+			count += cells[xi + yi * 100]
+	return count
+"
+
+[node name="GameOfLife" type="Node2D"]
+script = ExtResource( 1 )
+
+[node name="Cells" type="MeshInstance2D" parent="."]
+script = SubResource( 1 )
+
+[node name="Timer" type="Timer" parent="Cells"]
+autostart = true
+
+[node name="Grid" type="MeshInstance2D" parent="."]
+script = ExtResource( 2 )
+
+[node name="Camera" type="Camera2D" parent="."]
+current = true
+zoom = Vector2( 0.1, 0.1 )
+script = ExtResource( 3 )
+[connection signal="timeout" from="Cells/Timer" to="Cells" method="_on_Timer_timeout"]
